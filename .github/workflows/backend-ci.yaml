@@ -1,0 +1,58 @@
+name: Backend Continuous Integration
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'starter/backend/**'
+  workflow_dispatch:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        working-directory: starter/backend
+        run: docker build --tag mp-backend:latest .
+
+      - name: Run lint
+        working-directory: starter/backend
+        run: |
+          docker run --rm -w /app mp-backend:latest \
+            sh -c "pip install -q flake8 && flake8"
+
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        working-directory: starter/backend
+        run: docker build --tag mp-backend:latest .
+
+      - name: Run tests
+        working-directory: starter/backend
+        run: |
+          docker run --rm -w /app mp-backend:latest pytest -v
+
+  build:
+    needs:
+      - lint
+      - test
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        working-directory: starter/backend
+        run: docker build --tag mp-backend:latest .
