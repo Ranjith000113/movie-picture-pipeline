@@ -137,12 +137,12 @@ jobs:
           ENDPOINT=$(terraform output -raw cluster_endpoint)
           CA_DATA=$(terraform output -raw cluster_ca_certificate)
           
-          cat <<EOF > ~/.kube/config
+          cat <<'EOF' > ~/.kube/config
           apiVersion: v1
           clusters:
           - cluster:
-              certificate-authority-data: ${CA_DATA}
-              server: ${ENDPOINT}
+              certificate-authority-data: CA_DATA_PLACEHOLDER
+              server: ENDPOINT_PLACEHOLDER
             name: main
           contexts:
           - context:
@@ -166,6 +166,9 @@ jobs:
                   - "us-east-1"
           EOF
 
+          sed -i "s|CA_DATA_PLACEHOLDER|${CA_DATA}|g" ~/.kube/config
+          sed -i "s|ENDPOINT_PLACEHOLDER|${ENDPOINT}|g" ~/.kube/config
+          
       - name: Setup Kubernetes tools
         uses: yokawasa/action-setup-kube-tools@v0.13.5
         with:
