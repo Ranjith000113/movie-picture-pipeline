@@ -95,7 +95,7 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker build \
-            --build-arg REACT_APP_MOVIE_API_URL=http://localhost:5000 \
+            --build-arg REACT_APP_MOVIE_API_URL=http://a5d9de915d36443318b5b0b031f8a3ee-463390719.us-east-1.elb.amazonaws.com \
             --tag $REGISTRY/$REPOSITORY:$IMAGE_TAG \
             .
 
@@ -116,6 +116,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.5.0
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -125,9 +130,41 @@ jobs:
 
       - name: Configure kubectl
         run: |
-          aws eks update-kubeconfig \
-            --region us-east-1 \
-            --name cluster
+          mkdir -p ~/.kube
+          cd setup/terraform
+          terraform init
+          
+          ENDPOINT=$(terraform output -raw cluster_endpoint)
+          CA_DATA=$(terraform output -raw cluster_ca_certificate)
+          
+          cat <<EOF > ~/.kube/config
+          apiVersion: v1
+          clusters:
+          - cluster:
+              certificate-authority-data: ${CA_DATA}
+              server: ${ENDPOINT}
+            name: main
+          contexts:
+          - context:
+              cluster: main
+              user: github-action-user
+            name: main
+          current-context: main
+          kind: Config
+          users:
+          - name: github-action-user
+            user:
+              exec:
+                apiVersion: client.authentication.k8s.io/v1beta1
+                command: aws
+                args:
+                  - "eks"
+                  - "get-token"
+                  - "--cluster-name"
+                  - "cluster"
+                  - "--region"
+                  - "us-east-1"
+          EOF
 
       - name: Setup Kubernetes tools
         uses: yokawasa/action-setup-kube-tools@v0.13.5
